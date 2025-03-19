@@ -23,7 +23,7 @@ function App() {
             <BrowserRouter>
             <Appnavbar />
             <Routes>
-                {/* comment */}
+                
                 <Route path='/login3' Component={Login3}></Route>
                 <Route path='/Signup' Component={Signup}></Route>
                 <Route path='/Forgotpass' Component={Forgotpass}></Route>
