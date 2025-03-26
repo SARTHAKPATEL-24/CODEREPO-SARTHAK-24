@@ -4,7 +4,7 @@ import { DashboardOutlined, DirectionsBike, ShoppingCart, Build } from "@mui/ico
 
 const Dashboard = () => {
   return (
-    <Container>
+    <Container style={{marginTop:"80px"}}>
       <Typography variant="h4" gutterBottom>
         Admin Dashboard
       </Typography>

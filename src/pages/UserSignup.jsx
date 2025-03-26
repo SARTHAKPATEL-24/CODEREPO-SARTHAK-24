@@ -62,7 +62,7 @@ const Signup = () => {
               <input accept="image/*,.pdf" type="file" onChange={handleFileChange} style={{ marginTop: "5px" }} />
             </Grid>
             <Grid item xs={12}>
-              <Button onClick={() => navigate("/Login3")} type="submit" variant="contained" sx={{ backgroundColor: "#8b9a9b", color: "#fff", width: "100%" }}>
+              <Button onClick={() => navigate("/User/Login")} type="submit" variant="contained" sx={{ backgroundColor: "#8b9a9b", color: "#fff", width: "100%" }}>
                 Sign Up
               </Button>
             </Grid>

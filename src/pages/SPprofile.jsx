@@ -10,12 +10,13 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
-const UserProfile = () => {
+const SPProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -24,26 +25,21 @@ const UserProfile = () => {
     email: "sarthakpatel201@gmail.com",
     mobile: "7046087650",
     password: "password123",
-    address:"vastral",
+    address: "vastral",
     country: "India",
     state: "Gujarat",
     city: "Ahmedabad",
     pinCode: "382418",
     profileImage: "",
-    licenseFile: "No file uploaded",
+    serviceType: "Rent", // Added service type
   });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setFormData({ ...formData, [e.target.name]: file ? file.name : "No file uploaded" });
-  };
-
   return (
-    <Container maxWidth="md" style={{marginTop:"80px"}}>
+    <Container maxWidth="md" style={{ marginTop: "80px" }}>
       <Paper elevation={3} style={{ padding: 20, background: "white", borderRadius: 10 }}>
         <Stack spacing={3} alignItems="center">
           <div style={{ position: "relative" }}>
@@ -54,7 +50,7 @@ const UserProfile = () => {
                   accept="image/*"
                   type="file"
                   name="profileImage"
-                  onChange={handleFileChange}
+                  onChange={(e) => setFormData({ ...formData, profileImage: URL.createObjectURL(e.target.files[0]) })}
                   style={{ display: "none" }}
                   id="profile-upload"
                 />
@@ -72,67 +68,59 @@ const UserProfile = () => {
               </>
             )}
           </div>
-          
+
           <Grid container spacing={2}>
-            {[
-              { label: "First Name", name: "firstName" },
-              { label: "Surname", name: "surname" },
-              { label: "Email ID", name: "email" },
-              { label: "Password", name: "password", type: showPassword ? "text" : "password" },
-              { label: "Mobile Number", name: "mobile" },
-              { label: "Address", name: "address" },
-              { label: "Country", name: "country" },
-              { label: "State", name: "state" },
-              { label: "City", name: "city" },
-              { label: "Pin Code", name: "pinCode" },
-            ].map((field) => (
-              <Grid item xs={6} key={field.name}>
+            {["firstName", "surname", "email", "mobile", "address", "country", "state", "city", "pinCode"].map((field) => (
+              <Grid item xs={6} key={field}>
                 <TextField
                   fullWidth
-                  label={field.label}
-                  name={field.name}
-                  type={field.type || "text"}
-                  value={formData[field.name]}
+                  label={field.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}
+                  name={field}
+                  value={formData[field]}
                   onChange={handleChange}
                   variant="outlined"
                   disabled={!isEditing}
-                  InputProps={
-                    field.name === "password" && isEditing
-                      ? {
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton onClick={() => setShowPassword(!showPassword)}>
-                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        }
-                      : {}
-                  }
                 />
               </Grid>
             ))}
-          </Grid>
-          <Typography variant="body2" style={{ color: "#555" }}>
-            Uploaded License: {formData.licenseFile}
-          </Typography>
-          {isEditing && (
-            <>
-              <input
-                accept="image/*"
-                type="file"
-                name="licenseFile"
-                onChange={handleFileChange}
-                style={{ display: "none" }}
-                id="license-upload"
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                variant="outlined"
+                disabled={!isEditing}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
-              <label htmlFor="license-upload">
-                <Button fullWidth component="span" variant="contained" style={{ backgroundColor: "#8b9a9b" }}>
-                  Upload License
-                </Button>
-              </label>
-            </>
-          )}
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Service Type"
+                name="serviceType"
+                value={formData.serviceType}
+                onChange={handleChange}
+                variant="outlined"
+                disabled={!isEditing}
+              >
+                <MenuItem value="Sell">Sell</MenuItem>
+                <MenuItem value="Rent">Rent</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+
           <Button
             fullWidth
             variant="contained"
@@ -147,4 +135,4 @@ const UserProfile = () => {
   );
 };
 
-export default UserProfile;
+export default SPProfile;

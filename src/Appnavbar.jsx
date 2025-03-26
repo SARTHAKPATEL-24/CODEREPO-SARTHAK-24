@@ -2,20 +2,37 @@ import React, { useState } from "react";
 import { AppBar, Toolbar, Typography, Button, Drawer, List, ListItemButton, ListItemText, IconButton, Divider, Box } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Navbar = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Navigation items array
-  const navItems = [
+  // Navigation items for Users
+  const userNavItems = [
     { text: "Home", path: "/home" },
-    { text: "Rent a Bike", path: "/rent" },
-    { text: "Buy & Sell", path: "/buy-sell" },
-    { text: "Services", path: "/services" },
-    { text: "ContactUs", path: "/contactus" },
+    { text: "Buy & Rent", path: "/User/buy-rent" },
+    { text: "Repair & Services", path: "/User/repair"},
+    { text: "Previous Order", path:"/User/Order"},
+    { text: "My Profile", path:"/user/profile"},    
+    { text: "About Us", path: "/User/AboutUs" },
+    { text: "Contact Us", path: "/User/contactus" },
   ];
+
+  // Navigation items for Service Providers (SP)
+  const spNavItems = [
+    { text: "Dashboard", path:"/SP/Dashboard"},
+    { text: "Manage Listings", path: "/SP/manage-listings" },
+    { text: "Sell & Rent", path: "/SP/Sell-rent" },
+    { text: "Orders", path: "/SP/orders" },
+    { text: "Profile", path: "/SP/profile" },
+    { text: "Support", path: "/SP/support" },
+  ];
+
+  // Determine which navigation items to use based on the route
+  const isSP = location.pathname.startsWith("/SP");
+  const navItems = isSP ? spNavItems : userNavItems;
 
   const toggleDrawer = (open) => (event) => {
     if (event.type === "keydown" && (event.key === "Tab" || event.key === "Shift")) {
@@ -65,7 +82,13 @@ const Navbar = () => {
         </Typography>
 
         {/* Login Button */}
-        <Button color="inherit" sx={{ marginLeft: "auto" }} onClick={() => navigate("/Login3")}>Login</Button>
+        <Button 
+          color="inherit" 
+          sx={{ marginLeft: "auto" }} 
+          onClick={() => navigate(isSP ? "/SP/Login" : "/User/Login")}
+        >
+          Login
+        </Button>
       </Toolbar>
     </AppBar>
   );
