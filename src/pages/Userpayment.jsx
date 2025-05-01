@@ -101,7 +101,7 @@ const PaymentPage = () => {
             fullWidth
             size="large"
             sx={{
-              backgroundColor: "#c69087",
+              backgroundColor: "#8b9a9b",
               borderRadius: '8px',
               mt: 3,
             }}

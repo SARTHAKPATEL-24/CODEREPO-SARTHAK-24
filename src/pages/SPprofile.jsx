@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextField,
   Button,
   Container,
-  Avatar,
   Paper,
   Stack,
   Typography,
@@ -12,27 +11,48 @@ import {
   InputAdornment,
   MenuItem,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { auth, db } from "../config/Firebase"; // Import Firebase Auth and Firestore
+import { doc, getDoc } from "firebase/firestore"; // Firestore methods
 
 const SPProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: "sarthak",
-    surname: "Patel",
-    email: "sarthakpatel201@gmail.com",
-    mobile: "7046087650",
-    password: "password123",
-    address: "vastral",
-    country: "India",
-    state: "Gujarat",
-    city: "Ahmedabad",
-    pinCode: "382418",
-    profileImage: "",
-    serviceType: "Rent", // Added service type
+    firstName: "",
+    surname: "",
+    email: "",
+    mobile: "",
+    password: "",
+    address: "",
+    country: "",
+    state: "",
+    city: "",
+    pinCode: "",
+    service: "", // Ensure this matches the Firestore field name
   });
+
+  // Fetch user data from Firestore
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userId = auth.currentUser.uid; // Get the current user's UID
+        const userDocRef = doc(db, "SPusers", userId); // Reference to the user's document
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          setFormData(userDoc.data()); // Populate formData with fetched data
+        } else {
+          console.error("No such user profile!");
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error.message);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,35 +60,8 @@ const SPProfile = () => {
 
   return (
     <Container maxWidth="md" style={{ marginTop: "80px" }}>
-      <Paper elevation={3} style={{ padding: 20, background: "white", borderRadius: 10 }}>
+      <Paper elevation={3} style={{ padding: 20, background: "white", borderRadius: 10 }}>MY PROFILE
         <Stack spacing={3} alignItems="center">
-          <div style={{ position: "relative" }}>
-            <Avatar src={formData.profileImage} style={{ width: 100, height: 100, background: "#b0b0b0" }} />
-            {isEditing && (
-              <>
-                <input
-                  accept="image/*"
-                  type="file"
-                  name="profileImage"
-                  onChange={(e) => setFormData({ ...formData, profileImage: URL.createObjectURL(e.target.files[0]) })}
-                  style={{ display: "none" }}
-                  id="profile-upload"
-                />
-                <label htmlFor="profile-upload">
-                  <Button
-                    component="span"
-                    startIcon={<EditIcon />}
-                    size="small"
-                    variant="contained"
-                    style={{ position: "absolute", bottom: 0, right: 0, background: "#fff", color: "#000" }}
-                  >
-                    Edit
-                  </Button>
-                </label>
-              </>
-            )}
-          </div>
-
           <Grid container spacing={2}>
             {["firstName", "surname", "email", "mobile", "address", "country", "state", "city", "pinCode"].map((field) => (
               <Grid item xs={6} key={field}>
@@ -109,14 +102,14 @@ const SPProfile = () => {
                 select
                 fullWidth
                 label="Service Type"
-                name="serviceType"
-                value={formData.serviceType}
+                name="service" // Ensure this matches the Firestore field name
+                value={formData.service} // Ensure this matches the Firestore field name
                 onChange={handleChange}
                 variant="outlined"
                 disabled={!isEditing}
               >
-                <MenuItem value="Sell">Sell</MenuItem>
-                <MenuItem value="Rent">Rent</MenuItem>
+                <MenuItem value="sell">Sell Vehicle</MenuItem>
+                <MenuItem value="rent">Rent Vehicle</MenuItem>
               </TextField>
             </Grid>
           </Grid>

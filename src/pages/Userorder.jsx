@@ -1,155 +1,201 @@
-import React from "react";
-import { Card, CardContent, CardMedia, Typography, Grid, Button, Dialog, DialogTitle, DialogContent } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { db } from "../config/Firebase";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import {
+  Container,
+  Typography,
+  Tabs,
+  Tab,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  CircularProgress,
+  Box,
+  Button,
+} from "@mui/material";
 
-const orders = [
-  {
-    id: 1,
-    vehicle: "Honda Activa 6G",
-    model: "2022",
-    condition: "Good",
-    image: "https://via.placeholder.com/150",
-    date: "2025-03-10",
-    time: "10:00 AM",
-    price: "$15/day",
-    status: "Completed",
-  },
-  {
-    id: 2,
-    vehicle: "Royal Enfield Classic 350",
-    model: "2021",
-    condition: "Excellent",
-    image: "https://via.placeholder.com/150",
-    date: "2025-03-05",
-    time: "02:30 PM",
-    price: "$30/day",
-    status: "Completed",
-  },
-  {
-    id: 3,
-    vehicle: "TVS Jupiter",
-    model: "2020",
-    condition: "Fair",
-    image: "https://via.placeholder.com/150",
-    date: "2025-02-28",
-    time: "11:45 AM",
-    price: "$12/day",
-    status: "Completed",
-  },
-  {
-    id: 4,
-    vehicle: "Yamaha FZ-S",
-    model: "2023",
-    condition: "New",
-    image: "https://via.placeholder.com/150",
-    date: "2025-02-20",
-    time: "09:15 AM",
-    price: "$20/day",
-    status: "Completed",
-  },
-  {
-    id: 5,
-    vehicle: "Bajaj Pulsar 150",
-    model: "2019",
-    condition: "Good",
-    image: "https://via.placeholder.com/150",
-    date: "2025-02-15",
-    time: "04:00 PM",
-    price: "$18/day",
-    status: "Completed",
-  },
-  {
-    id: 6,
-    vehicle: "Suzuki Access 125",
-    model: "2021",
-    condition: "Excellent",
-    image: "https://via.placeholder.com/150",
-    date: "2025-02-10",
-    time: "12:30 PM",
-    price: "$14/day",
-    status: "Completed",
-  },
-  {
-    id: 7,
-    vehicle: "KTM Duke 200",
-    model: "2023",
-    condition: "New",
-    image: "https://via.placeholder.com/150",
-    date: "2025-02-05",
-    time: "03:20 PM",
-    price: "$35/day",
-    status: "Completed",
-  },
-  {
-    id: 8,
-    vehicle: "Hero Splendor Plus",
-    model: "2018",
-    condition: "Fair",
-    image: "https://via.placeholder.com/150",
-    date: "2025-02-01",
-    time: "08:10 AM",
-    price: "$10/day",
-    status: "Completed",
-  },
-];
+const UserOrder = () => {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
 
-const PreviousOrders = () => {
-  const [open, setOpen] = React.useState(false);
-  const [selectedOrder, setSelectedOrder] = React.useState(null);
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
 
-  const handleOpen = (order) => {
-    setSelectedOrder(order);
-    setOpen(true);
+        if (!currentUser) {
+          console.warn("User not logged in.");
+          setLoading(false);
+          return;
+        }
+
+        const q = query(
+          collection(db, "userOrders"),
+          where("userId", "==", currentUser.uid)
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedOrders = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setOrders(fetchedOrders);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching user orders:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const handleTabChange = (event, newIndex) => {
+    setTabIndex(newIndex);
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setSelectedOrder(null);
+  const handleMarkAsCompleted = async (orderId) => {
+    try {
+      const orderDoc = doc(db, "userOrders", orderId);
+      await updateDoc(orderDoc, { status: "completed" });
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "completed" } : order
+        )
+      );
+    } catch (error) {
+      console.error("Error marking order as completed:", error);
+    }
   };
+
+  const filteredOrders = orders.filter((order) =>
+    tabIndex === 0 ? order.status === "in-progress" : order.status === "completed"
+  );
 
   return (
-    <>
-      <Grid container spacing={3} style={{marginTop:"50px"}}>
-        {orders.map((order) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={order.id}>
-            <Card>
-              <CardMedia component="img" height="140" image={order.image} alt={order.vehicle} />
-              <CardContent>
-                <Typography variant="h6">{order.vehicle}</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Date: {order.date}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Price: {order.price}
-                </Typography>
-                <Typography variant="body2" color={order.status === "Completed" ? "green" : "red"}>
-                  Status: {order.status}
-                </Typography>
-                <Button variant="contained" style={{backgroundColor:"#8b9a9b"}} sx={{ mt: 1 }} onClick={() => handleOpen(order)}>
-                  View Details
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+    <Container maxWidth="lg" sx={{ mt: 10 }}>
+      <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom>
+        My Orders
+      </Typography>
 
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Order Details</DialogTitle>
-        <DialogContent>
-          {selectedOrder && (
-            <>
-              <Typography variant="h6">{selectedOrder.vehicle}</Typography>
-              <Typography>Model: {selectedOrder.model}</Typography>
-              <Typography>Condition: {selectedOrder.condition}</Typography>
-              <Typography>Price: {selectedOrder.price}</Typography>
-              <Typography>Date: {selectedOrder.date}</Typography>
-              <Typography>Time: {selectedOrder.time}</Typography>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+      <Tabs
+        value={tabIndex}
+        onChange={handleTabChange}
+        centered
+        indicatorColor="primary"
+        textColor="primary"
+        sx={{ mb: 3 }}
+      >
+        <Tab label="Upcoming Orders" sx={{ fontSize: "16px", fontWeight: "bold" }} />
+        <Tab label="Completed Orders" sx={{ fontSize: "16px", fontWeight: "bold" }} />
+      </Tabs>
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+          <CircularProgress />
+        </Box>
+      ) : filteredOrders.length > 0 ? (
+        <Grid container spacing={3}>
+          {filteredOrders.map((order) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={order.id}>
+              <Card
+                sx={{
+                  boxShadow: 3,
+                  borderRadius: 2,
+                  display: "flex",
+                  flexDirection: "column",
+                  flexWrap: "wrap",
+                  height: "100%",
+                  width: "100%",
+                  overflow: "hidden",
+                  transition: "transform 0.2s ease-in-out",
+                  "&:hover": { transform: "scale(1.02)" },
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{ maxHeight: 200, objectFit: "cover" }}
+                  image={order.image || "https://via.placeholder.com/150"}
+                  alt={order.vehicleName}
+                />
+                <CardContent
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    flexGrow: 1,
+                  }}
+                >
+                  <Typography variant="h6" fontWeight="bold">
+                    {order.vehicleName}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Model: {order.model}
+                  </Typography>
+                  <Typography variant="body2">
+                    Type: {order.type === "buy" ? "Buy" : "Rent"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Pickup: {order.pickupDateTime}
+                  </Typography>
+                  {order.type === "rent" && (
+                    <Typography variant="body2">
+                      Return: {order.returnDateTime}
+                    </Typography>
+                  )}
+                  <Typography
+                    variant="body2"
+                    fontWeight="bold"
+                    color="primary"
+                    sx={{ mt: 1 }}
+                  >
+                    Price: {order.price}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ mt: 1 }}
+                    color={
+                      order.paymentStatus === "Paid"
+                        ? "success.main"
+                        : "error.main"
+                    }
+                  >
+                    Payment: {order.paymentStatus}
+                  </Typography>
+
+                  {order.status === "upcoming" && (
+                    <Button
+                      variant="contained"
+                      sx={{ mt: 2, backgroundColor: "#8b9a9b", color: "#fff" }}
+                      onClick={() => handleMarkAsCompleted(order.id)}
+                    >
+                      Mark as Completed
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Typography sx={{ mt: 2, textAlign: "center", color: "text.secondary" }}>
+          No orders found.
+        </Typography>
+      )}
+    </Container>
   );
 };
 
-export default PreviousOrders;
+export default UserOrder;

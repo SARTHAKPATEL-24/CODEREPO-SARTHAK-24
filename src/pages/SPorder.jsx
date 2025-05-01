@@ -1,51 +1,89 @@
-import React from "react";
-import { Card, CardContent, Typography, Paper, Grid } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { db } from "../config/Firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  CircularProgress,
+  Box,
+} from "@mui/material";
 
-const orders = Array.from({ length: 16 }, (_, index) => ({
-  id: `RENT-${index + 1}`,
-  customer: [
-    "John Doe", "Alice Smith", "Robert Brown", "Emily Davis", "Michael Wilson", 
-    "Sophia Martinez", "David Anderson", "Olivia Thomas", "James Taylor", "Emma White", 
-    "William Harris", "Ava Martin", "Alexander Lee", "Isabella Clark", "Daniel Lewis", "Mia Walker"
-  ][index],
-  phone: `+91 98765${10000 + index}`,
-  vehicle: [
-    "Honda Activa", "Yamaha R15", "Bajaj Pulsar", "Royal Enfield Classic 350", "TVS Jupiter", 
-    "Hero Splendor", "KTM Duke 390", "Suzuki Access", "Honda Dio", "Bajaj Avenger", 
-    "TVS Apache", "Yamaha FZ", "Honda CB Shine", "Suzuki Gixxer", "Hero Passion Pro", "Kawasaki Ninja 300"
-  ][index],
-  price: [
-    500, 1500, 1000, 2000, 700, 600, 1800, 800, 750, 1200, 1100, 1300, 900, 950, 650, 2500
-  ][index],
-  status: ["Booked", "Ongoing", "Completed"][index % 3],
-  date: new Date().toISOString().split("T")[0],
-}));
+const SPOrder = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const RentalOrderList = () => {
+  useEffect(() => {
+    const fetchCompletedOrders = async () => {
+      try {
+        setLoading(true);
+        const q = query(
+          collection(db, "userOrders"),
+          where("status", "==", "completed") // Fetch only completed orders
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedOrders = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setOrders(fetchedOrders);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching completed orders:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchCompletedOrders();
+  }, []);
+
   return (
-    <Paper sx={{ padding: 2, marginTop: "60px", boxShadow: "none", backgroundColor: "#f2f8fa" }}>
-      <Typography variant="h6" gutterBottom>
-        Two-Wheeler Rental Orders:-
+    <Container maxWidth="lg" sx={{ mt: 10 }}>
+      <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom>
+        Completed Orders
       </Typography>
-      <Grid container spacing={2}>
-        {orders.map((order) => (
-          <Grid item xs={12} sm={6} md={3} key={order.id}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle1"><strong>Order ID:</strong> {order.id}</Typography>
-                <Typography variant="body2"><strong>Customer:</strong> {order.customer}</Typography>
-                <Typography variant="body2"><strong>Mobile:</strong> {order.phone}</Typography>
-                <Typography variant="body2"><strong>Vehicle:</strong> {order.vehicle}</Typography>
-                <Typography variant="body2"><strong>Rental Price:</strong> ₹{order.price}/day</Typography>
-                <Typography variant="body2"><strong>Status:</strong> {order.status}</Typography>
-                <Typography variant="body2"><strong>Date:</strong> {order.date}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Paper>
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+          <CircularProgress />
+        </Box>
+      ) : orders.length > 0 ? (
+        <Grid container spacing={3}>
+          {orders.map((order) => (
+            <Grid item xs={12} sm={6} md={4} key={order.id}>
+              <Card>
+                <CardMedia
+                  component="img"
+                  height="140"
+                  image={order.image || "https://via.placeholder.com/300"}
+                  alt={order.vehicleName}
+                />
+                <CardContent>
+                  <Typography variant="h6">{order.vehicleName}</Typography>
+                  <Typography variant="body2">Buyer: {order.userName}</Typography>
+                  <Typography variant="body2">Mobile: {order.mobile}</Typography>
+                  <Typography variant="body2">Address: {order.address}</Typography>
+                  <Typography variant="body2">Pickup: {order.pickupDateTime}</Typography>
+                  {order.type === "rent" && (
+                    <Typography variant="body2">Return: {order.returnDateTime}</Typography>
+                  )}
+                  <Typography variant="body2">Payment: {order.paymentStatus}</Typography>
+                  <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
+                    Status: Completed
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Typography>No completed orders found.</Typography>
+      )}
+    </Container>
   );
 };
 
-export default RentalOrderList;
+export default SPOrder;

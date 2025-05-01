@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Button,
@@ -12,54 +12,124 @@ import {
   Box,
   Select,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  Stack,
+  FormControl,
+  InputLabel,
+  Snackbar,
+  Alert,
 } from "@mui/material";
+import { db } from "../config/Firebase";
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; // 🔹 Import Firebase Auth
 
 const cities = ["Ahmedabad", "Gandhinagar", "Vadodara", "Surat"];
 
-const generateVehiclesForCity = (city) => {
-  const vehicleNames = [
-    "Honda Activa", "TVS Jupiter", "Suzuki Access", "Royal Enfield Classic",
-    "Bajaj Pulsar", "Yamaha FZ", "KTM Duke", "Hero Splendor",
-    "Honda Shine", "Suzuki Burgman", "Yamaha R15", "Bajaj Avenger",
-    "TVS Apache", "Honda Dio", "Kawasaki Ninja", "Harley Davidson",
-    "Honda CB350", "Bajaj Dominar", "TVS Ronin", "Hero Xpulse",
-    "Ducati Monster", "Benelli TRK", "KTM RC390", "Aprilia SXR",
-    "Suzuki Gixxer", "Triumph Speed", "Revolt RV400", "Ola S1 Pro"
-  ];
-
-  const vehicleTypes = ["buy", "rent"];
-  const conditions = ["New", "Used"];
-  const owners = ["John Doe", "Alice Smith", "Michael Brown", "David Wilson", "Sophia Green"];
-  const models = ["X1", "Z5", "Pro Max", "Classic A", "Sport B", "Eco Rider", "Turbo X"];
-  const images = [
-    "https://source.unsplash.com/300x200/?motorcycle",
-    "https://source.unsplash.com/300x200/?bike",
-    "https://source.unsplash.com/300x200/?scooter",
-  ];
-
-  return Array.from({ length: 56 }, (_, i) => ({
-    id: `${city}-${i + 1}`,
-    city,
-    name: vehicleNames[i % vehicleNames.length],
-    model: models[i % models.length],
-    price: vehicleTypes[i % 2] === "buy" ? `$${10000 + i * 500}` : `$${40 + (i % 10) * 5}/day`,
-    type: vehicleTypes[i % 2],
-    owner: owners[i % owners.length],
-    condition: conditions[i % conditions.length],
-    image: images[i % images.length],
-  }));
-};
-
-const vehiclesByCity = cities.reduce((acc, city) => {
-  acc[city] = generateVehiclesForCity(city);
-  return acc;
-}, {});
-
 const BuyRentPage = () => {
-  const [view, setView] = useState("buy");
-  const [selectedCity, setSelectedCity] = useState("Ahmedabad");
+  const [view, setView] = useState(localStorage.getItem("service") || "buy");
+  const [selectedCity, setSelectedCity] = useState(localStorage.getItem("city") || "Ahmedabad");
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState({
+    buyerName: "",
+    mobile: "",
+    address: "",
+    pickupDateTime: "",
+    returnDateTime: "",
+    paymentStatus: "Pending",
+  });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  const filteredVehicles = vehiclesByCity[selectedCity].filter((vehicle) => vehicle.type === view);
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      try {
+        const q = query(
+          collection(db, "vehicles"),
+          where("city", "==", selectedCity),
+          where("type", "==", view)
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedVehicles = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setVehicles(fetchedVehicles);
+      } catch (err) {
+        console.error("Error fetching vehicles:", err);
+      }
+    };
+
+    fetchVehicles();
+  }, [selectedCity, view]);
+
+  const handleOpenDialog = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedVehicle(null);
+    setBookingDetails({
+      buyerName: "",
+      mobile: "",
+      address: "",
+      pickupDateTime: "",
+      returnDateTime: "",
+      paymentStatus: "Pending",
+    });
+  };
+
+  const handleBookingChange = (e) => {
+    setBookingDetails({ ...bookingDetails, [e.target.name]: e.target.value });
+  };
+
+  const handleBookNow = async () => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        setSnackbarMessage("You must be logged in to book a vehicle.");
+        setSnackbarOpen(true);
+        return;
+      }
+
+      const order = {
+        userId: user.uid,
+        userName: bookingDetails.buyerName,
+        vehicleId: selectedVehicle.id,
+        vehicleName: selectedVehicle.name,
+        model: selectedVehicle.model,
+        price: selectedVehicle.price,
+        image: selectedVehicle.image,
+        spuserid: selectedVehicle.spuserid,
+        type: view,
+        pickupDateTime: bookingDetails.pickupDateTime,
+        returnDateTime: view === "rent" ? bookingDetails.returnDateTime : null,
+        address: bookingDetails.address,
+        mobile: bookingDetails.mobile,
+        paymentStatus: bookingDetails.paymentStatus,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, "userOrders"), order);
+
+      setSnackbarMessage("Booking successful!");
+      setSnackbarOpen(true);
+      handleCloseDialog();
+    } catch (error) {
+      console.error("Error placing order:", error);
+      setSnackbarMessage("Failed to place the booking. Please try again.");
+      setSnackbarOpen(true);
+    }
+  };
 
   return (
     <Container style={{ marginTop: "80px" }}>
@@ -111,7 +181,7 @@ const BuyRentPage = () => {
       </Box>
 
       <Grid container spacing={2} style={{ marginTop: "20px" }}>
-        {filteredVehicles.map((vehicle) => (
+        {vehicles.map((vehicle) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={vehicle.id}>
             <Card>
               <CardMedia component="img" height="180" image={vehicle.image} alt={vehicle.name} />
@@ -132,6 +202,7 @@ const BuyRentPage = () => {
                       padding: "8px 16px",
                       borderRadius: "20px",
                     }}
+                    onClick={() => handleOpenDialog(vehicle)}
                   >
                     {view === "buy" ? "Buy Now" : "Rent Now"}
                   </Button>
@@ -141,6 +212,97 @@ const BuyRentPage = () => {
           </Grid>
         ))}
       </Grid>
+
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{view === "buy" ? "Buy Vehicle" : "Rent Vehicle"}</DialogTitle>
+        <DialogContent>
+          {selectedVehicle && (
+            <Box>
+              <Typography variant="h6">{selectedVehicle.name}</Typography>
+              <Typography variant="body2">Model: {selectedVehicle.model}</Typography>
+              <Typography variant="body2">Price: {selectedVehicle.price}</Typography>
+              <Typography variant="body2">Owner: {selectedVehicle.owner}</Typography>
+              <Typography variant="body2">Condition: {selectedVehicle.condition}</Typography>
+              <Typography variant="body2">City: {selectedVehicle.city}</Typography>
+            </Box>
+          )}
+          <Stack spacing={2} mt={2}>
+            <TextField
+              label="Buyer Name"
+              name="buyerName"
+              value={bookingDetails.buyerName}
+              onChange={handleBookingChange}
+              fullWidth
+            />
+            <TextField
+              label="Mobile Number"
+              name="mobile"
+              value={bookingDetails.mobile}
+              onChange={handleBookingChange}
+              fullWidth
+            />
+            <TextField
+              label="Address"
+              name="address"
+              value={bookingDetails.address}
+              onChange={handleBookingChange}
+              fullWidth
+            />
+            <TextField
+              label="Pickup Date and Time"
+              name="pickupDateTime"
+              type="datetime-local"
+              value={bookingDetails.pickupDateTime}
+              onChange={handleBookingChange}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+            {view === "rent" && (
+              <TextField
+                label="Return Date and Time"
+                name="returnDateTime"
+                type="datetime-local"
+                value={bookingDetails.returnDateTime}
+                onChange={handleBookingChange}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            )}
+            <FormControl fullWidth>
+              <InputLabel id="payment-status-label">Payment Status</InputLabel>
+              <Select
+                labelId="payment-status-label"
+                id="payment-status"
+                name="paymentStatus"
+                value={bookingDetails.paymentStatus}
+                onChange={handleBookingChange}
+              >
+                <MenuItem value="Pending">Pending</MenuItem>
+                <MenuItem value="Paid">Paid</MenuItem>
+                <MenuItem value="50% Paid">50% Paid</MenuItem>
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              sx={{ backgroundColor: "#8b9a9b", color: "#fff" }}
+              onClick={handleBookNow}
+            >
+              Book Now
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: "100%" }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Container, TextField, Checkbox, FormControlLabel, Button, Typography, Card, CardContent, Box, IconButton, InputAdornment } from "@mui/material";
+import { Container, TextField, Checkbox, FormControlLabel, Button, Typography, Card, CardContent, Link, Box, IconButton, InputAdornment } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { auth } from "../config/Firebase"; // Import Firebase Auth
+import { auth, db } from "../config/Firebase"; // Import Firebase Auth and Firestore
 import { signInWithEmailAndPassword } from "firebase/auth"; // Firebase Auth method
+import { doc, getDoc } from "firebase/firestore"; // Firestore methods
 
-function Glide({handleLoginfromApp}) {
+function RepairShopLogin({handleLoginfromApp}) {
   const navigate = useNavigate();
   const [data, setData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
@@ -28,20 +29,34 @@ function Glide({handleLoginfromApp}) {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
-      // Get Firebase access token (JWT)
-      const token = await user.getIdToken();
+      // Fetch user profile from Firestore
+      const userDocRef = doc(db, "repairShops", user.uid);
+      const userDoc = await getDoc(userDocRef);
 
-      console.log("Access Token:", token); // Store in localStorage or cookies
-      localStorage.setItem("accessToken", token);
-            localStorage.setItem("userEmail", data.email); // Store email in localStorage
-            localStorage.setItem("userId", userCredential.user.uid);
-            handleLoginfromApp();
+      if (userDoc.exists()) {
+        const userProfile = userDoc.data();
+        console.log("User profile fetched:", userProfile);
 
-      // Redirect to the SP Dashboard
-      navigate("/SP/Dashboard");
+        // Get Firebase access token (JWT)
+        const token = await user.getIdToken();
+        console.log("Access Token:", token);
+
+        // Store profile data and token in localStorage
+        
+        localStorage.setItem("accessToken", token);
+        localStorage.setItem("userEmail", data.email); // Store email in localStorage
+        localStorage.setItem("userId", userCredential.user.uid);
+        handleLoginfromApp();
+
+        // Redirect to the profile page
+        navigate("/Repairshop/requests");
+      } else {
+        console.error("No such user profile found!");
+        setError("No profile found for this account.");
+      }
     } catch (error) {
       console.error("Login error:", error.message);
-      setError("Invalid email or password. Please try again."); // Set error message
+      setError("Invalid email or password. Please try again.");
     }
   };
 
@@ -90,6 +105,7 @@ function Glide({handleLoginfromApp}) {
               control={<Checkbox />}
               label={<Typography variant="body2">Keep me logged in</Typography>}
             />
+           
           </Box>
           <Button
             fullWidth
@@ -101,7 +117,7 @@ function Glide({handleLoginfromApp}) {
           </Button>
           <Typography align="center" sx={{ mt: 2 }}>
             Don't have an account?
-            <Button sx={{ color: "#1976D2", textTransform: "none" }} onClick={() => navigate("/SP/signup")}>
+            <Button sx={{ color: "#1976D2", textTransform: "none" }} onClick={() => navigate("/Repairshop/signup")}>
               Sign Up
             </Button>
           </Typography>
@@ -111,4 +127,4 @@ function Glide({handleLoginfromApp}) {
   );
 }
 
-export default Glide;
+export default RepairShopLogin;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -10,28 +10,67 @@ import {
   CardActions,
   MenuItem,
   IconButton,
-  Popover
+  Popover,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { db, auth } from '../config/Firebase'; // Added auth import
+import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth'; // Added auth state listener
 
-const BuyRentPage = () => {
+const SPSell = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    model: '',
-    price: '',
-    type: '',
-    rentPrice: '',
-    option: '',
-    image: '',
-    owner: '',
-    condition: '',
-    city: ''
+    id: "",
+    name: "",
+    model: "",
+    price: "",
+    type: "",
+    image: "",
+    owner: "",
+    condition: "",
+    city: "",
+    spuserid: "", // Added userId field
   });
 
   const [listings, setListings] = useState([]);
   const [editIndex, setEditIndex] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuIndex, setMenuIndex] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null); // Track logged-in user
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+        setFormData((prev) => ({ ...prev, spuserid: user.uid }));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch listings from Firestore
+  const fetchListings = () => {
+    const unsubscribe = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
+      const fetchedListings = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((listing) => listing.spuserid === currentUser?.uid); // Filter by userId
+
+      setListings(fetchedListings);
+    });
+
+    return unsubscribe;
+  };
+
+  // Fetch listings when currentUser is available
+  useEffect(() => {
+    if (currentUser) {
+      const unsubscribe = fetchListings();
+      return () => unsubscribe();
+    }
+  }, [currentUser]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,17 +88,39 @@ const BuyRentPage = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editIndex !== null) {
-      const updatedListings = [...listings];
-      updatedListings[editIndex] = formData;
-      setListings(updatedListings);
-      setEditIndex(null);
-    } else {
-      setListings([...listings, formData]);
+
+    try {
+      if (editIndex !== null) {
+        // Update existing vehicle
+        const listingDoc = doc(db, "vehicles", listings[editIndex].id);
+        await updateDoc(listingDoc, formData);
+        setEditIndex(null);
+      } else {
+        // Add new vehicle with the current user's ID
+        await addDoc(collection(db, "vehicles"), {
+          ...formData,
+          spuserid: currentUser.uid, // Add the logged-in user's ID
+        });
+      }
+
+      // Reset the form
+      setFormData({
+        id: "",
+        name: "",
+        model: "",
+        price: "",
+        type: "",
+        image: "",
+        owner: "",
+        condition: "",
+        city: "",
+        spuserid: currentUser?.uid || "", // Reset with the current user's ID
+      });
+    } catch (err) {
+      console.error("Error saving listing:", err);
     }
-    setFormData({ name: '', model: '', price: '', type: '', rentPrice: '', option: '', image: '', owner: '', condition: '', city: '' });
   };
 
   const handleEdit = (index) => {
@@ -68,9 +129,15 @@ const BuyRentPage = () => {
     handleMenuClose();
   };
 
-  const handleDelete = (index) => {
-    setListings(listings.filter((_, i) => i !== index));
-    handleMenuClose();
+  const handleDelete = async (index) => {
+    try {
+      const listingDoc = doc(db, 'vehicles', listings[index].id);
+      await deleteDoc(listingDoc);
+      setListings(listings.filter((_, i) => i !== index));
+      handleMenuClose();
+    } catch (err) {
+      console.error('Error deleting listing:', err);
+    }
   };
 
   const handleMenuClick = (event, index) => {
@@ -89,49 +156,43 @@ const BuyRentPage = () => {
         Sell & Rent Two-Wheelers
       </Typography>
 
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField label="Vehicle Name" name="name" value={formData.name} onChange={handleChange} fullWidth required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField label="Model" name="model" value={formData.model} onChange={handleChange} fullWidth required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField label="Owner Name" name="owner" value={formData.owner} onChange={handleChange} fullWidth required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField label="Condition" name="condition" value={formData.condition} onChange={handleChange} fullWidth required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField label="City" name="city" value={formData.city} onChange={handleChange} fullWidth required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Option" name="option" value={formData.option} onChange={handleChange} fullWidth required>
-              <MenuItem value="Buy">Sell</MenuItem>
-              <MenuItem value="Rent">Rent</MenuItem>
-            </TextField>
-          </Grid>
-          {formData.option === 'Buy' && (
-            <Grid item xs={12} sm={6}>
-              <TextField label="Price" name="price" value={formData.price} onChange={handleChange} fullWidth required type="number" />
-            </Grid>
-          )}
-          {formData.option === 'Rent' && (
-            <Grid item xs={12} sm={6}>
-              <TextField label="Rent Price" name="rentPrice" value={formData.rentPrice} onChange={handleChange} fullWidth required type="number" />
-            </Grid>
-          )}
-          <Grid item xs={12}>
-            <input type="file" accept="image/*" onChange={handleImageChange} style={{ width: '100%' }} />
-          </Grid>
-          <Grid item xs={12}>
-            <Button type="submit" variant="contained" style={{ backgroundColor: '#8b9a9b', width: '100%' }}>
-              {editIndex !== null ? 'Update' : 'Submit'}
-            </Button>
-          </Grid>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField label="ID" name="id" value={formData.id} onChange={handleChange} fullWidth required />
         </Grid>
-      </form>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Vehicle Name" name="name" value={formData.name} onChange={handleChange} fullWidth required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Model" name="model" value={formData.model} onChange={handleChange} fullWidth required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Owner Name" name="owner" value={formData.owner} onChange={handleChange} fullWidth required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Condition" name="condition" value={formData.condition} onChange={handleChange} fullWidth required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="City" name="city" value={formData.city} onChange={handleChange} fullWidth required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField select label="Type" name="type" value={formData.type} onChange={handleChange} fullWidth required>
+            <MenuItem value="buy">buy</MenuItem>
+            <MenuItem value="rent">rent</MenuItem>
+          </TextField>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Price" name="price" value={formData.price} onChange={handleChange} fullWidth required type="text" />
+        </Grid>
+        <Grid item xs={12}>
+          <input type="file" accept="image/*" onChange={handleImageChange} style={{ width: '100%' }} />
+        </Grid>
+        <Grid item xs={12}>
+          <Button type="submit" variant="contained" style={{ backgroundColor: '#8b9a9b', width: '100%' }} onClick={handleSubmit}>
+            {editIndex !== null ? 'Update' : 'Submit'}
+          </Button>
+        </Grid>
+      </Grid>
 
       <Typography variant="h5" gutterBottom style={{ marginTop: '20px' }} align="center">
         Available Listings
@@ -147,12 +208,11 @@ const BuyRentPage = () => {
                 <Typography variant="body2" align="center">Owner: {listing.owner}</Typography>
                 <Typography variant="body2" align="center">Condition: {listing.condition}</Typography>
                 <Typography variant="body2" align="center">City: {listing.city}</Typography>
-                {listing.option === 'Buy' && <Typography variant="body2" align="center">Price: ${listing.price}</Typography>}
-                {listing.option === 'Rent' && <Typography variant="body2" align="center">Rent Price: ${listing.rentPrice}</Typography>}
+                <Typography variant="body2" align="center">
+                  {listing.type === 'Buy' ? `Price: ₹${listing.price}` : `Price: ₹${listing.price}`}
+                </Typography>
               </CardContent>
               <CardActions style={{ justifyContent: 'space-between' }}>
-                {listing.option === 'Rent' && <Button size="small" color="primary">Rent</Button>}
-                {listing.option === 'Buy' && <Button size="small" color="secondary">Sell</Button>}
                 <IconButton onClick={(e) => handleMenuClick(e, index)}>
                   <MoreVertIcon />
                 </IconButton>
@@ -169,4 +229,4 @@ const BuyRentPage = () => {
   );
 };
 
-export default BuyRentPage;
+export default SPSell;
